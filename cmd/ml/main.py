@@ -33,7 +33,7 @@ def extract_features(log: LogEntry):
 
 def train_model(logs):
     X = np.vstack([extract_features(log) for log in logs])
-    contamination = 0.5 if os.getenv("ENV", "dev").lower() == "dev" else 0.02
+    contamination = float(os.getenv("CONTAMINATION", "0.5" if os.getenv("ENV", "dev").lower() == "dev" else "0.02"))
     clf = IsolationForest(contamination=contamination, random_state=42)
     clf.fit(X)
     joblib.dump(clf, MODEL_PATH)
