@@ -1,192 +1,206 @@
-# Log Sentinel
+# 🛡️ Log Sentinel - Observabilidade & Anomalias em Logs
 
-Monitoramento inteligente de logs com detecção de anomalias baseada em machine learning.
+<div align="center">
+<img src=".gitassets/cover.png" width="350" />
 
----
+<div data-badges>
+  <img src="https://img.shields.io/github/stars/lorenaziviani/log_sentinel?style=for-the-badge&logo=github" alt="GitHub stars" />
+  <img src="https://img.shields.io/github/forks/lorenaziviani/log_sentinel?style=for-the-badge&logo=github" alt="GitHub forks" />
+  <img src="https://img.shields.io/github/last-commit/lorenaziviani/log_sentinel?style=for-the-badge&logo=github" alt="GitHub last commit" />
+</div>
 
-## Visão Geral
+<div data-badges>
+  <img src="https://img.shields.io/badge/Go-00ADD8?style=for-the-badge&logo=go&logoColor=white" alt="Go" />
+  <img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python" />
+  <img src="https://img.shields.io/badge/ElasticSearch-005571?style=for-the-badge&logo=elasticsearch&logoColor=white" alt="ElasticSearch" />
+  <img src="https://img.shields.io/badge/Prometheus-E6522C?style=for-the-badge&logo=prometheus&logoColor=white" alt="Prometheus" />
+  <img src="https://img.shields.io/badge/Grafana-F46800?style=for-the-badge&logo=grafana&logoColor=white" alt="Grafana" />
+  <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker" />
+  <img src="https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI" />
+</div>
+</div>
 
-O Log Sentinel é uma solução para ingestão, detecção e reação a anomalias em logs. O pipeline é composto por:
+O **Log Sentinel** é uma plataforma de observabilidade e detecção de anomalias em logs, combinando ingestão de logs, machine learning, ElasticSearch, Prometheus e Grafana para monitoramento inteligente e reação automática a incidentes.
 
-- **LogCollector (Go):** recebe logs, envia para ElasticSearch, consulta serviço de ML, sinaliza anomalias e expõe métricas Prometheus.
-- **ElasticSearch:** armazenamento dos logs e das anomalias.
-- **AnomalyDetector API (Python):** detecta anomalias nos logs usando ML, exposto via REST.
-- **Prometheus & Grafana:** monitoramento e visualização de métricas e dashboards.
+✔ **Ingestão de logs multi-fonte** (HTTP, arquivos)
 
----
+✔ **Detecção de anomalias** em tempo real via ML (Isolation Forest)
 
-## Arquitetura
+✔ **Alertas automáticos** em caso de picos de anomalia
 
-```mermaid
-flowchart LR
-    A["App"] --> B["LogCollector (Go)"]
-    F["Log File"] --> B
-    B --> C["ElasticSearch"]
-    B -.-> D["Local Fallback"]
-    C --> E["AnomalyDetector API (Python)"]
-    B --> E
-    E --> G["Anomaly Index"]
-    B --> G
-    B --> H["Prometheus"]
-    H --> I["Grafana"]
-    C --> I
-    G --> I
-```
+✔ **Observabilidade completa** com Prometheus e Grafana
 
-**Componentes:**
+✔ **Dashboards ricos** para logs, anomalias, métricas e latência
 
-- **App:** Origem dos logs (serviços, aplicações)
-- **Log File:** Arquivos locais de log
-- **LogCollector (Go):** Coleta logs, envia para ElasticSearch, consulta serviço de ML, grava anomalias em outro índice, expõe métricas Prometheus
-- **ElasticSearch:** Armazenamento e consulta
-- **Local Fallback:** Armazenamento local caso ElasticSearch esteja indisponível
-- **AnomalyDetector API (Python):** Detecção de anomalias via REST/gRPC
-- **Anomaly Index:** Índice dedicado para logs anômalos
-- **Prometheus:** Coleta métricas do Go collector
-- **Grafana:** Dashboards para logs, anomalias e métricas
+✔ **Fallback local** e rastreabilidade ponta-a-ponta
+
+Desenvolvido em Go e Python, pronto para produção, extensível e fácil de integrar.
 
 ---
 
-## Tech Stack
+## 🖥️ Como rodar este projeto 🖥️
 
-- Go (coletor e pipeline de ingestão)
-- Python (scikit-learn para ML)
-- FastAPI (serviço REST de ML)
-- Prometheus (métricas)
-- Grafana (dashboards)
-- ElasticSearch (armazenamento e consulta de logs)
+### Requisitos:
 
----
+- [Go 1.21+](https://golang.org/doc/install)
+- [Python 3.10+](https://www.python.org/)
+- [Docker & Docker Compose](https://docs.docker.com/get-docker/)
 
-## Estrutura do Repositório
+### Execução:
 
-- `cmd/collector` — Serviço Go para coleta de logs
-- `cmd/ml` — Serviço Python para detecção de anomalias
-- `pkg/anomaly` — Lógica de detecção de anomalias em Go
-- `internal/parser` — Parsing e normalização de logs
-- `infra/elastic` — Scripts/configuração do ElasticSearch
-- `docs/` — Documentação e diagramas
-
----
-
-## Configuração do LogCollector
-
-1. Copie o arquivo `.env.sample` para `.env` e ajuste as variáveis conforme necessário:
-
-```env
-# Endereço do ElasticSearch (padrão: http://localhost:9200)
-ELASTIC_ADDR=http://localhost:9200
-# Nome do índice no ElasticSearch (padrão: logs-sentinel)
-ELASTIC_INDEX=logs-sentinel
-# Diretório monitorado para arquivos locais de log (padrão: /var/log/log_sentinel)
-LOG_SENTINEL_DIR=/var/log/log_sentinel
-# URL do serviço de ML (padrão: http://localhost:8000/predict)
-ML_URL=http://localhost:8000/predict
-```
-
----
-
-## Observabilidade: Prometheus & Grafana
-
-### Expondo métricas no Go Collector
-
-- O endpoint `/metrics` está disponível em `http://localhost:8080/metrics`.
-- Métricas expostas:
-  - `log_total`: total de logs recebidos
-  - `anomaly_total`: total de logs classificados como anomalia
-  - `ml_response_seconds`: tempo de resposta do serviço de ML
-
-### Exemplo de configuração Prometheus
-
-```yaml
-- job_name: "logcollector"
-  static_configs:
-    - targets: ["localhost:8080"]
-```
-
-### Dashboards no Grafana
-
-- Adicione Prometheus como fonte de dados e importe um dashboard para visualizar:
-  - Volume de logs
-  - % de anomalias
-  - Tempo de resposta do ML
-- Adicione ElasticSearch como fonte de dados para dashboards de logs e anomalias.
-
-### Prints e exemplos
-
-- ![Exemplo de dashboard Prometheus/Grafana](docs/dashboard_example.png)
-- ![Exemplo de dashboard Elastic](docs/elastic_dashboard_example.png)
+1. Clone este repositório:
+   ```sh
+   git clone https://github.com/lorenaziviani/log_sentinel.git
+   cd log_sentinel
+   ```
+2. Instale dependências Go e Python:
+   ```sh
+   cd cmd/collector && go mod download
+   cd ../ml && pip install -r requirements.txt
+   ```
+3. Configure variáveis de ambiente:
+   ```sh
+   cp .env.sample .env
+   # Edite .env conforme necessário
+   ```
+4. Suba todos os serviços com Docker Compose:
+   ```sh
+   docker-compose up -d
+   ```
+5. Ou execute localmente:
+   ```sh
+   # ElasticSearch e Kibana via Docker
+   docker-compose up -d elasticsearch kibana
+   # ML
+   cd cmd/ml && uvicorn main:app --host 0.0.0.0 --port 8000
+   # Coletor
+   cd ../collector && go run main.go
+   ```
+6. Envie logs de teste:
+   ```sh
+   make integration-test
+   # ou
+   bash ../logs-test.sh
+   ```
+7. Acesse os serviços:
+   - **Kibana**: [http://localhost:5601](http://localhost:5601)
+   - **Grafana**: [http://localhost:3000](http://localhost:3000)
+   - **Prometheus**: [http://localhost:9090](http://localhost:9090)
+   - **ML API**: [http://localhost:8000/docs](http://localhost:8000/docs)
 
 ---
 
-## Pipeline Completo: Ingestão → Detecção → Ação
+## 🗒️ Features do projeto 🗒️
 
-1. **Ingestão:** Logs são recebidos via HTTP ou arquivos locais pelo LogCollector.
-2. **Armazenamento:** Logs são salvos no ElasticSearch (ou localmente, fallback).
-3. **Detecção:** Cada log é enviado para o serviço de ML (`ML_URL`).
-4. **Ação:**
-   - Logs anômalos são gravados em um índice dedicado (`logs-sentinel-anomaly`).
-   - Alertas são gerados se houver mais de 5 anomalias por minuto (ajustável via código).
-   - (Exemplo: integração futura com Slack pode ser feita neste ponto).
+🔎 **Ingestão & Parsing**
+
+- Recebe logs via HTTP e arquivos locais
+- Parsing centralizado e normalização de campos
+- Suporte a múltiplas fontes e formatos
+
+🤖 **Detecção de Anomalias (ML)**
+
+- Serviço Python com Isolation Forest
+- Treinamento e predição via API REST
+- Score de anomalia e classificação em tempo real
+
+🚨 **Alertas & Reação**
+
+- Geração automática de alertas (`level: ALERT`) em caso de picos de anomalia
+- Persistência de alertas e logs anômalos em índices dedicados
+- Pronto para integração com sistemas externos (Slack, e-mail)
+
+📊 **Observabilidade Completa**
+
+- Métricas Prometheus: volume, anomalias, latência do ML
+- Dashboards Grafana: volume, % anomalia, tempo de resposta, alertas
+- Dashboards Kibana: logs, anomalias, rastreabilidade
+
+🛠️ **Administração & Testes**
+
+- Makefile com targets para testes, lint, execução e integração
+- Script de integração real (`logs-test.sh`)
+- Fallback local automático se ElasticSearch indisponível
 
 ---
 
-## Serviço de ML (AnomalyDetector API)
+## 🔧 Comandos de Teste 🔧
 
-### Instalação e Execução
+```bash
+# Testes unitários
+make test
 
-```sh
-cd cmd/ml
-pip install -r requirements.txt
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-```
+# Lint
+make lint
 
-### Treinamento do Modelo
+# Executar o coletor
+make run
 
-Envie logs reais e simulados para o endpoint `/train`:
-
-```sh
-curl -X POST http://localhost:8000/train \
-  -H 'Content-Type: application/json' \
-  -d '[
-    {"timestamp": "2024-06-01T12:00:00Z", "level": "INFO", "message": "User login", "source": "auth"},
-    {"timestamp": "2024-06-01T12:01:00Z", "level": "ERROR", "message": "Brute force detected", "source": "auth"}
-  ]'
-```
-
-### Predição de Anomalia
-
-Envie um log para o endpoint `/predict`:
-
-```sh
-curl -X POST http://localhost:8000/predict \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "timestamp": "2024-06-01T12:05:00Z",
-    "level": "ERROR",
-    "message": "Multiple failed logins",
-    "source": "auth"
-  }'
-```
-
-Resposta:
-
-```json
-{
-  "anomaly_score": 0.42,
-  "is_anomaly": true
-}
+# Teste de integração (envia logs reais)
+make integration-test
 ```
 
 ---
 
-## Observações
+## 📈 Monitoramento e Dashboards 📈
 
-- O LogCollector consulta o serviço de ML para cada log e sinaliza anomalias.
-- Logs anômalos são gravados em um índice separado no ElasticSearch.
-- Alertas são emitidos se o número de anomalias ultrapassar o limiar configurado.
-- O pipeline pode ser facilmente estendido para enviar alertas para outros sistemas (ex: Slack).
-- O serviço de ML pode ser customizado e treinado via API.
-- O sistema é mensurável e rastreável via Prometheus e Grafana.
+### Grafana Dashboard
+
+Acesse [http://localhost:3000](http://localhost:3000) para visualizar:
+
+- Volume de logs
+- % de anomalias
+- Latência do ML
+- Alertas em tempo real
+
+![Dashboard Grafana](.gitassets/grafana.png)
+
+### Kibana
+
+Acesse [http://localhost:5601](http://localhost:5601) para:
+
+- Explorar logs e anomalias
+- Criar dashboards customizados
+- Rastrear logs do recebimento à classificação
+
+![Dashboard Elastic](.gitassets/elastic-logs.png)
+![Dashboard Elastic](.gitassets/elastic-dash.png)
+
+### Prometheus Metrics
+
+Acesse [http://localhost:9090](http://localhost:9090) para monitorar:
+
+- Métricas em tempo real do Log Sentinel (coletor, ML, anomalias)
+- Targets e endpoints monitorados (serviços Go, ML, etc)
+- Queries customizadas para análise de volume de logs, latência do ML, % de anomalias
+- Alertas e regras configuradas para detecção de picos, falhas ou anomalias
+
+![Prometheus UI - Targets](.gitassets/prometheus.png)
+
+---
+
+## 🏗️ Arquitetura do Sistema 🏗️
+
+![Architecture](docs/architecture.drawio.png)
+
+**Fluxo detalhado:**
+
+1. Recebe log (HTTP ou arquivo)
+2. Salva no ElasticSearch (ou local)
+3. Consulta ML para detecção de anomalia
+4. Salva anomalias e alertas em índices dedicados
+5. Exposição de métricas Prometheus
+6. Dashboards em Grafana e Kibana
+
+---
+
+## 💎 Links úteis 💎
+
+- [Go Documentation](https://golang.org/doc/)
+- [FastAPI](https://fastapi.tiangolo.com/)
+- [ElasticSearch](https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html)
+- [Prometheus](https://prometheus.io/docs/)
+- [Grafana](https://grafana.com/docs/)
+- [Scikit-learn Isolation Forest](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.IsolationForest.html)
 
 ---

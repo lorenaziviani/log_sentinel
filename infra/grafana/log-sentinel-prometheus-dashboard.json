@@ -1,0 +1,81 @@
+{
+  "title": "Log Sentinel - Prometheus Metrics",
+  "uid": "log-sentinel-prometheus",
+  "schemaVersion": 36,
+  "version": 1,
+  "refresh": "10s",
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Total Logs",
+      "gridPos": {"x": 0, "y": 0, "w": 4, "h": 3},
+      "targets": [{"expr": "log_total"}]
+    },
+    {
+      "type": "stat",
+      "title": "Total Anomalies",
+      "gridPos": {"x": 4, "y": 0, "w": 4, "h": 3},
+      "targets": [{"expr": "anomaly_total"}]
+    },
+    {
+      "type": "stat",
+      "title": "% Anomalies",
+      "gridPos": {"x": 8, "y": 0, "w": 4, "h": 3},
+      "targets": [{"expr": "100 * (anomaly_total / log_total)"}],
+      "fieldConfig": {"defaults": {"unit": "percent"}}
+    },
+    {
+      "type": "stat",
+      "title": "ML Response Time (p95)",
+      "gridPos": {"x": 0, "y": 3, "w": 4, "h": 3},
+      "targets": [{"expr": "histogram_quantile(0.95, sum(rate(ml_response_seconds_bucket[1m])) by (le))"}],
+      "fieldConfig": {"defaults": {"unit": "s"}}
+    },
+    {
+      "type": "stat",
+      "title": "ML Response Time (avg)",
+      "gridPos": {"x": 4, "y": 3, "w": 4, "h": 3},
+      "targets": [{"expr": "rate(ml_response_seconds_sum[5m]) / rate(ml_response_seconds_count[5m])"}],
+      "fieldConfig": {"defaults": {"unit": "s"}}
+    },
+    {
+      "type": "stat",
+      "title": "Logs per Minute",
+      "gridPos": {"x": 8, "y": 3, "w": 4, "h": 3},
+      "targets": [{"expr": "rate(log_total[1m])"}],
+      "fieldConfig": {"defaults": {"unit": "none"}}
+    },
+    {
+      "type": "stat",
+      "title": "Anomalies per Minute",
+      "gridPos": {"x": 0, "y": 6, "w": 4, "h": 3},
+      "targets": [{"expr": "rate(anomaly_total[1m])"}],
+      "fieldConfig": {"defaults": {"unit": "none"}}
+    },
+    {
+      "type": "timeseries",
+      "title": "Logs & Anomalies per Minute",
+      "gridPos": {"x": 4, "y": 6, "w": 8, "h": 6},
+      "targets": [
+        {"expr": "rate(log_total[1m])", "legendFormat": "Logs/min"},
+        {"expr": "rate(anomaly_total[1m])", "legendFormat": "Anomalies/min"}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "ML Response Time (p95)",
+      "gridPos": {"x": 0, "y": 9, "w": 6, "h": 6},
+      "targets": [
+        {"expr": "histogram_quantile(0.95, sum(rate(ml_response_seconds_bucket[1m])) by (le))", "legendFormat": "p95"}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "% Anomalies Over Time",
+      "gridPos": {"x": 6, "y": 9, "w": 6, "h": 6},
+      "targets": [
+        {"expr": "100 * (rate(anomaly_total[1m]) / rate(log_total[1m]))", "legendFormat": "% anomalies"}
+      ]
+    }
+  ]
+} 

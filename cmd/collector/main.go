@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -36,6 +37,8 @@ var (
 		Help:    "ML service response time",
 		Buckets: prometheus.DefBuckets,
 	})
+	saveLog     func(entry *parser.LogEntry) error                = saveLogImpl
+	saveAnomaly func(entry *parser.LogEntry, score float64) error = saveAnomalyImpl
 )
 
 type AnomalyResult struct {
@@ -111,7 +114,7 @@ func saveLogToFile(entry *parser.LogEntry) error {
 	return err
 }
 
-func saveLog(entry *parser.LogEntry) error {
+func saveLogImpl(entry *parser.LogEntry) error {
 	if esClient != nil {
 		data, err := json.Marshal(entry)
 		if err != nil {
@@ -125,6 +128,26 @@ func saveLog(entry *parser.LogEntry) error {
 		log.Printf("[WARN] Failed to send log to Elastic: %v. Saving locally.", err)
 	}
 	return saveLogToFile(entry)
+}
+
+func saveAnomalyImpl(entry *parser.LogEntry, score float64) error {
+	if esClient != nil {
+		anomalyIndex := esIndex + "-anomaly"
+		anomalyDoc := map[string]interface{}{
+			"timestamp":     entry.Timestamp,
+			"level":         entry.Level,
+			"message":       entry.Message,
+			"source":        entry.Source,
+			"anomaly_score": score,
+		}
+		data, _ := json.Marshal(anomalyDoc)
+		res, err := esClient.Index(anomalyIndex, bytes.NewReader(data), esClient.Index.WithContext(context.Background()))
+		if err == nil && !res.IsError() {
+			defer res.Body.Close()
+			return nil
+		}
+	}
+	return nil
 }
 
 func checkAnomaly(entry *parser.LogEntry) (bool, float64, error) {
@@ -150,26 +173,6 @@ func checkAnomaly(entry *parser.LogEntry) (bool, float64, error) {
 	return result.IsAnomaly, result.AnomalyScore, nil
 }
 
-func saveAnomaly(entry *parser.LogEntry, score float64) error {
-	if esClient != nil {
-		anomalyIndex := esIndex + "-anomaly"
-		anomalyDoc := map[string]interface{}{
-			"timestamp":     entry.Timestamp,
-			"level":         entry.Level,
-			"message":       entry.Message,
-			"source":        entry.Source,
-			"anomaly_score": score,
-		}
-		data, _ := json.Marshal(anomalyDoc)
-		res, err := esClient.Index(anomalyIndex, bytes.NewReader(data), esClient.Index.WithContext(context.Background()))
-		if err == nil && !res.IsError() {
-			defer res.Body.Close()
-			return nil
-		}
-	}
-	return nil
-}
-
 func processLogWithAnomaly(entry *parser.LogEntry) {
 	isAnomaly, score, err := checkAnomaly(entry)
 	if err != nil {
@@ -187,6 +190,16 @@ func processLogWithAnomaly(entry *parser.LogEntry) {
 	if time.Since(alertRule.LastAlert) > alertRule.Window {
 		if anomalyCount >= alertRule.Threshold {
 			log.Printf("[ALERT] %d anomalies detected in the last %s!", anomalyCount, alertRule.Window)
+			alertEntry := &parser.LogEntry{
+				Timestamp: time.Now(),
+				Level:     "ALERT",
+				Message:   fmt.Sprintf("%d anomalies detected in the last %s!", anomalyCount, alertRule.Window),
+				Source:    "log-collector",
+			}
+			err := saveLog(alertEntry)
+			if err != nil {
+				log.Printf("[WARN] Failed to save alert log: %v", err)
+			}
 			alertRule.LastAlert = time.Now()
 			anomalyCount = 0
 		}
