@@ -8,9 +8,10 @@ Monitoramento inteligente de logs com detecção de anomalias baseada em machine
 
 O Log Sentinel é uma solução para ingestão, detecção e reação a anomalias em logs. O pipeline é composto por:
 
-- **LogCollector (Go):** recebe logs, envia para ElasticSearch, consulta serviço de ML e sinaliza anomalias.
+- **LogCollector (Go):** recebe logs, envia para ElasticSearch, consulta serviço de ML, sinaliza anomalias e expõe métricas Prometheus.
 - **ElasticSearch:** armazenamento dos logs e das anomalias.
 - **AnomalyDetector API (Python):** detecta anomalias nos logs usando ML, exposto via REST.
+- **Prometheus & Grafana:** monitoramento e visualização de métricas e dashboards.
 
 ---
 
@@ -26,17 +27,23 @@ flowchart LR
     B --> E
     E --> G["Anomaly Index"]
     B --> G
+    B --> H["Prometheus"]
+    H --> I["Grafana"]
+    C --> I
+    G --> I
 ```
 
 **Componentes:**
 
 - **App:** Origem dos logs (serviços, aplicações)
 - **Log File:** Arquivos locais de log
-- **LogCollector (Go):** Coleta logs, envia para ElasticSearch, consulta serviço de ML, grava anomalias em outro índice
+- **LogCollector (Go):** Coleta logs, envia para ElasticSearch, consulta serviço de ML, grava anomalias em outro índice, expõe métricas Prometheus
 - **ElasticSearch:** Armazenamento e consulta
 - **Local Fallback:** Armazenamento local caso ElasticSearch esteja indisponível
 - **AnomalyDetector API (Python):** Detecção de anomalias via REST/gRPC
 - **Anomaly Index:** Índice dedicado para logs anômalos
+- **Prometheus:** Coleta métricas do Go collector
+- **Grafana:** Dashboards para logs, anomalias e métricas
 
 ---
 
@@ -45,7 +52,8 @@ flowchart LR
 - Go (coletor e pipeline de ingestão)
 - Python (scikit-learn para ML)
 - FastAPI (serviço REST de ML)
-- gRPC ou REST (comunicação entre Go e Python)
+- Prometheus (métricas)
+- Grafana (dashboards)
 - ElasticSearch (armazenamento e consulta de logs)
 
 ---
@@ -75,6 +83,39 @@ LOG_SENTINEL_DIR=/var/log/log_sentinel
 # URL do serviço de ML (padrão: http://localhost:8000/predict)
 ML_URL=http://localhost:8000/predict
 ```
+
+---
+
+## Observabilidade: Prometheus & Grafana
+
+### Expondo métricas no Go Collector
+
+- O endpoint `/metrics` está disponível em `http://localhost:8080/metrics`.
+- Métricas expostas:
+  - `log_total`: total de logs recebidos
+  - `anomaly_total`: total de logs classificados como anomalia
+  - `ml_response_seconds`: tempo de resposta do serviço de ML
+
+### Exemplo de configuração Prometheus
+
+```yaml
+- job_name: "logcollector"
+  static_configs:
+    - targets: ["localhost:8080"]
+```
+
+### Dashboards no Grafana
+
+- Adicione Prometheus como fonte de dados e importe um dashboard para visualizar:
+  - Volume de logs
+  - % de anomalias
+  - Tempo de resposta do ML
+- Adicione ElasticSearch como fonte de dados para dashboards de logs e anomalias.
+
+### Prints e exemplos
+
+- ![Exemplo de dashboard Prometheus/Grafana](docs/dashboard_example.png)
+- ![Exemplo de dashboard Elastic](docs/elastic_dashboard_example.png)
 
 ---
 
@@ -146,5 +187,6 @@ Resposta:
 - Alertas são emitidos se o número de anomalias ultrapassar o limiar configurado.
 - O pipeline pode ser facilmente estendido para enviar alertas para outros sistemas (ex: Slack).
 - O serviço de ML pode ser customizado e treinado via API.
+- O sistema é mensurável e rastreável via Prometheus e Grafana.
 
 ---

@@ -14,6 +14,8 @@ import (
 	"log_sentinel/internal/parser"
 
 	"github.com/elastic/go-elasticsearch/v8"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
@@ -21,6 +23,19 @@ var (
 	esIndex  string
 	logDir   string
 	mlURL    string
+	logTotal = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "log_total",
+		Help: "Total of logs received",
+	})
+	anomalyTotal = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "anomaly_total",
+		Help: "% of logs classified as anomaly",
+	})
+	mlDuration = prometheus.NewHistogram(prometheus.HistogramOpts{
+		Name:    "ml_response_seconds",
+		Help:    "ML service response time",
+		Buckets: prometheus.DefBuckets,
+	})
 )
 
 type AnomalyResult struct {
@@ -37,6 +52,10 @@ type AlertRule struct {
 
 var alertRule = AlertRule{Threshold: 5, Window: time.Minute}
 var anomalyCount int
+
+func init() {
+	prometheus.MustRegister(logTotal, anomalyTotal, mlDuration)
+}
 
 func initConfig() {
 	esIndex = os.Getenv("ELASTIC_INDEX")
@@ -109,11 +128,13 @@ func saveLog(entry *parser.LogEntry) error {
 }
 
 func checkAnomaly(entry *parser.LogEntry) (bool, float64, error) {
+	start := time.Now()
 	data, err := json.Marshal(entry)
 	if err != nil {
 		return false, 0, err
 	}
 	resp, err := http.Post(mlURL, "application/json", bytes.NewReader(data))
+	mlDuration.Observe(time.Since(start).Seconds())
 	if err != nil {
 		return false, 0, err
 	}
@@ -155,6 +176,7 @@ func processLogWithAnomaly(entry *parser.LogEntry) {
 		log.Printf("[WARN] ML service error: %v", err)
 	}
 	if isAnomaly {
+		anomalyTotal.Inc()
 		anomalyCount++
 		err := saveAnomaly(entry, score)
 		if err != nil {
@@ -186,6 +208,7 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to save log", http.StatusInternalServerError)
 		return
 	}
+	logTotal.Inc()
 	go processLogWithAnomaly(entry)
 	w.WriteHeader(http.StatusAccepted)
 }
@@ -231,6 +254,7 @@ func main() {
 	initElastic()
 	go watchLogFiles(logDir) // Example of local log directory
 	http.HandleFunc("/logs", logHandler)
+	http.Handle("/metrics", promhttp.Handler())
 	log.Println("LogCollector listening on :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
