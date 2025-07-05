@@ -22,27 +22,27 @@
 
 O **Log Sentinel** é uma plataforma de observabilidade e detecção de anomalias em logs, combinando ingestão de logs, machine learning, ElasticSearch, Prometheus e Grafana para monitoramento inteligente e reação automática a incidentes.
 
-✔ **Ingestão de logs multi-fonte** (HTTP, arquivos)
+✔️ **Ingestão de logs multi-fonte** (HTTP, arquivos)
 
-✔ **Detecção de anomalias** em tempo real via ML (Isolation Forest)
+✔️ **Detecção de anomalias** em tempo real via ML (Isolation Forest)
 
-✔ **Alertas automáticos** em caso de picos de anomalia
+✔️ **Alertas automáticos** em caso de picos de anomalia (Discord)
 
-✔ **Observabilidade completa** com Prometheus e Grafana
+✔️ **Observabilidade completa** com Prometheus e Grafana
 
-✔ **Dashboards ricos** para logs, anomalias, métricas e latência
+✔️ **Dashboards ricos** para logs, anomalias, métricas e latência
 
-✔ **Fallback local** e rastreabilidade ponta-a-ponta
+✔️ **Fallback local** e rastreabilidade ponta-a-ponta
 
 Desenvolvido em Go e Python, pronto para produção, extensível e fácil de integrar.
 
 ---
 
-## 🖥️ Como rodar este projeto 🖥️
+## 🖥️ Como rodar este projeto
 
 ### Requisitos:
 
-- [Go 1.21+](https://golang.org/doc/install)
+- [Go 1.24+](https://golang.org/doc/install)
 - [Python 3.10+](https://www.python.org/)
 - [Docker & Docker Compose](https://docs.docker.com/get-docker/)
 
@@ -55,8 +55,8 @@ Desenvolvido em Go e Python, pronto para produção, extensível e fácil de int
    ```
 2. Instale dependências Go e Python:
    ```sh
-   cd cmd/collector && go mod download
-   cd ../ml && pip install -r requirements.txt
+   go mod download
+   cd cmd/ml && pip install -r requirements.txt
    ```
 3. Configure variáveis de ambiente:
    ```sh
@@ -65,7 +65,7 @@ Desenvolvido em Go e Python, pronto para produção, extensível e fácil de int
    ```
 4. Suba todos os serviços com Docker Compose:
    ```sh
-   docker-compose up -d
+   docker-compose up --build
    ```
 5. Ou execute localmente:
    ```sh
@@ -80,7 +80,7 @@ Desenvolvido em Go e Python, pronto para produção, extensível e fácil de int
    ```sh
    make integration-test
    # ou
-   bash ../logs-test.sh
+   bash cmd/collector/logs-test.sh
    ```
 7. Acesse os serviços:
    - **Kibana**: [http://localhost:5601](http://localhost:5601)
@@ -90,7 +90,7 @@ Desenvolvido em Go e Python, pronto para produção, extensível e fácil de int
 
 ---
 
-## 🗒️ Features do projeto 🗒️
+## 📝 Features do projeto
 
 🔎 **Ingestão & Parsing**
 
@@ -108,7 +108,7 @@ Desenvolvido em Go e Python, pronto para produção, extensível e fácil de int
 
 - Geração automática de alertas (`level: ALERT`) em caso de picos de anomalia
 - Persistência de alertas e logs anômalos em índices dedicados
-- Pronto para integração com sistemas externos (Slack, e-mail)
+- Integração com Discord via webhook
 
 📊 **Observabilidade Completa**
 
@@ -124,10 +124,10 @@ Desenvolvido em Go e Python, pronto para produção, extensível e fácil de int
 
 ---
 
-## 🔧 Comandos de Teste 🔧
+## 🛠️ Comandos de Teste
 
 ```bash
-# Testes unitários
+# Testes unitários do collector
 make test
 
 # Lint
@@ -138,11 +138,20 @@ make run
 
 # Teste de integração (envia logs reais)
 make integration-test
+
+# Treinar modelo ML
+make train-ml
+
+# Testar endpoint de predição ML
+make predict-ml
+
+# Testes unitários do ml
+make test-ml
 ```
 
 ---
 
-## 📈 Monitoramento e Dashboards 📈
+## 📈 Monitoramento e Dashboards
 
 ### Grafana Dashboard
 
@@ -177,9 +186,15 @@ Acesse [http://localhost:9090](http://localhost:9090) para monitorar:
 
 ![Prometheus UI - Targets](.gitassets/prometheus.png)
 
+### Alertas
+
+- Envio de alertas de anomalias no Discord
+
+![Prometheus UI - Targets](.gitassets/discord.png)
+
 ---
 
-## 🏗️ Arquitetura do Sistema 🏗️
+## 🏗️ Arquitetura do Sistema
 
 ![Architecture](docs/architecture.drawio.png)
 
@@ -191,16 +206,51 @@ Acesse [http://localhost:9090](http://localhost:9090) para monitorar:
 4. Salva anomalias e alertas em índices dedicados
 5. Exposição de métricas Prometheus
 6. Dashboards em Grafana e Kibana
+7. Alertas enviados para Discord
 
 ---
 
-## 💎 Links úteis 💎
+## 🌐 Variáveis de Ambiente
+
+```env
+# .env.example
+ELASTIC_ADDR=http://elasticsearch:9200
+ML_URL=http://ml:8000/predict
+DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
+```
+
+---
+
+## 📁 Estrutura de Pastas
+
+```
+log_sentinel/
+  go.mod
+  go.sum
+  docker-compose.yml
+  Makefile
+  .env.sample
+  cmd/
+    collector/      # Projeto Go (main.go, notifier.go, logs-test.sh, etc)
+    ml/             # Projeto Python (main.py, requirements.txt, etc)
+  internal/
+    parser/         # Pacotes Go internos
+  pkg/
+    anomaly/        # Outros pacotes Go
+  docs/
+    architecture.drawio.png
+  .gitassets/       # Imagens para README
+```
+
+---
+
+## 💎 Links úteis
 
 - [Go Documentation](https://golang.org/doc/)
 - [FastAPI](https://fastapi.tiangolo.com/)
-- [ElasticSearch](https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html)
-- [Prometheus](https://prometheus.io/docs/)
-- [Grafana](https://grafana.com/docs/)
-- [Scikit-learn Isolation Forest](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.IsolationForest.html)
+- [ElasticSearch](https://www.elastic.co/)
+- [Prometheus](https://prometheus.io/)
+- [Grafana](https://grafana.com/)
+- [Docker](https://www.docker.com/)
 
 ---

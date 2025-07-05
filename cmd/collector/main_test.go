@@ -2,7 +2,7 @@ package main
 
 import (
 	"errors"
-	"log_sentinel/internal/parser"
+	"log_sentinel/cmd/collector/internal/parser"
 	"testing"
 	"time"
 )

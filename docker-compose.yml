@@ -48,11 +48,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    environment:
-      - ELASTIC_ADDR=http://elasticsearch:9200
-      - ML_URL=http://ml:8000/predict
-      - ELASTIC_INDEX=logs-sentinel
-      - LOG_SENTINEL_DIR=/app/logs
+    env_file:
+      - .env
     ports:
       - 8080:8080
     depends_on:

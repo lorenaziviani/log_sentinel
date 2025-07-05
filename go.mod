@@ -1,13 +1,10 @@
-module log_sentinel/cmd/collector
+module log_sentinel
 
-go 1.22
-
-toolchain go1.24.3
+go 1.24.3
 
 require (
 	github.com/elastic/go-elasticsearch/v8 v8.18.1
 	github.com/prometheus/client_golang v1.22.0
-	log_sentinel/internal/parser v0.0.0
 )
 
 require (
@@ -26,5 +23,3 @@ require (
 	golang.org/x/sys v0.30.0 // indirect
 	google.golang.org/protobuf v1.36.5 // indirect
 )
-
-replace log_sentinel/internal/parser => ../../internal/parser

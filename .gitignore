@@ -25,6 +25,8 @@ go.work
 !env.sample
 .gitconfig*
 git-switch.sh
+*.joblib
+*.pyc
 
 # IDE
 .vscode/

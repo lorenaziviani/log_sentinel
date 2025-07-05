@@ -23,16 +23,18 @@ class AnomalyResponse(BaseModel):
 model = None
 
 def extract_features(log: LogEntry):
-    # Simple example: message length, encoded level, hour of day
+    # Features: level, message length, hour, brute_force flag
     level_map = {"INFO": 0, "WARN": 1, "ERROR": 2, "DEBUG": 3}
     level = level_map.get(log.level.upper(), -1)
     msg_len = len(log.message)
     hour = int(log.timestamp[11:13]) if len(log.timestamp) > 12 else 0
-    return np.array([[level, msg_len, hour]])
+    brute_force = 1 if "brute force" in log.message.lower() else 0
+    return np.array([[level, msg_len, hour, brute_force]])
 
 def train_model(logs):
     X = np.vstack([extract_features(log) for log in logs])
-    clf = IsolationForest(contamination=0.05, random_state=42)
+    contamination = 0.5 if os.getenv("ENV", "dev").lower() == "dev" else 0.02
+    clf = IsolationForest(contamination=contamination, random_state=42)
     clf.fit(X)
     joblib.dump(clf, MODEL_PATH)
     return clf

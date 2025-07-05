@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"log_sentinel/internal/parser"
+	"log_sentinel/cmd/collector/internal/parser"
 
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/prometheus/client_golang/prometheus"
@@ -187,18 +187,30 @@ func processLogWithAnomaly(entry *parser.LogEntry) {
 		}
 		log.Printf("[ALERT] Anomaly detected: %+v (score: %.2f)", entry, score)
 	}
+
 	if time.Since(alertRule.LastAlert) > alertRule.Window {
 		if anomalyCount >= alertRule.Threshold {
-			log.Printf("[ALERT] %d anomalies detected in the last %s!", anomalyCount, alertRule.Window)
+			log.Printf("[ALERT] Threshold reached! anomalyCount=%d, threshold=%d", anomalyCount, alertRule.Threshold)
 			alertEntry := &parser.LogEntry{
 				Timestamp: time.Now(),
 				Level:     "ALERT",
 				Message:   fmt.Sprintf("%d anomalies detected in the last %s!", anomalyCount, alertRule.Window),
 				Source:    "log-collector",
 			}
+			log.Printf("[ALERT] Attempting to save alert log: %+v", alertEntry)
 			err := saveLog(alertEntry)
 			if err != nil {
 				log.Printf("[WARN] Failed to save alert log: %v", err)
+			} else {
+				log.Printf("[ALERT] Alert log saved in Elasticsearch!")
+			}
+			msg := fmt.Sprintf("🚨 ALERT: %s", alertEntry.Message)
+			log.Printf("[ALERT] Sending alert to Discord: %s", msg)
+			err = NotifyDiscord(msg)
+			if err != nil {
+				log.Printf("[ERROR] Falha ao enviar alerta para Discord: %v", err)
+			} else {
+				log.Printf("[ALERT] Alerta enviado para Discord com sucesso!")
 			}
 			alertRule.LastAlert = time.Now()
 			anomalyCount = 0
@@ -207,17 +219,15 @@ func processLogWithAnomaly(entry *parser.LogEntry) {
 }
 
 func logHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
-		return
-	}
 	entry, err := parseLog(r)
 	if err != nil {
+		log.Printf("[ERROR] ParseLog falhou: %v", err)
 		http.Error(w, "Invalid log format", http.StatusBadRequest)
 		return
 	}
 	err = saveLog(entry)
 	if err != nil {
+		log.Printf("[ERROR] Falha ao salvar log: %v", err)
 		http.Error(w, "Failed to save log", http.StatusInternalServerError)
 		return
 	}
