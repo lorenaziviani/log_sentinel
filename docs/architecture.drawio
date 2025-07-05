@@ -1,6 +1,6 @@
 <mxfile host="65bd71144e">
     <diagram id="architecture" name="Architecture">
-        <mxGraphModel dx="750" dy="492" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+        <mxGraphModel dx="530" dy="492" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -13,14 +13,11 @@
                 <mxCell id="3" value="LogCollector (Go)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#BBCCFF;strokeColor=#000000;" parent="1" vertex="1">
                     <mxGeometry x="260" y="180" width="160" height="60" as="geometry"/>
                 </mxCell>
-                <mxCell id="4" value="ElasticSearch" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFBBFF;strokeColor=#000000;" parent="1" vertex="1">
-                    <mxGeometry x="480" y="120" width="140" height="60" as="geometry"/>
-                </mxCell>
                 <mxCell id="10" value="Local Fallback" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#CCCCCC;strokeColor=#000000;" parent="1" vertex="1">
                     <mxGeometry x="480" y="240" width="140" height="60" as="geometry"/>
                 </mxCell>
-                <mxCell id="5" value="AnomalyDetector (Python)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#BBFFBB;strokeColor=#000000;" parent="1" vertex="1">
-                    <mxGeometry x="680" y="120" width="200" height="60" as="geometry"/>
+                <mxCell id="5" value="AnomalyDetector API (Python)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#BBFFBB;strokeColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="700" y="120" width="220" height="60" as="geometry"/>
                 </mxCell>
                 <mxCell id="6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#000000;" parent="1" source="2" target="3" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
@@ -36,6 +33,17 @@
                 </mxCell>
                 <mxCell id="8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#000000;" parent="1" source="4" target="5" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="13" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=0;endArrow=block;endFill=1;strokeColor=#000000;" parent="1" source="3" target="5" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="450" y="210"/>
+                            <mxPoint x="450" y="150"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="4" value="ElasticSearch" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFBBFF;strokeColor=#000000;" parent="1" vertex="1">
+                    <mxGeometry x="480" y="120" width="140" height="60" as="geometry"/>
                 </mxCell>
             </root>
         </mxGraphModel>

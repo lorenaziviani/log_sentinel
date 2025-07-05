@@ -10,7 +10,7 @@ O Log Sentinel é uma solução para ingestão, armazenamento e análise de logs
 
 - **LogCollector (Go):** recebe logs via HTTP e arquivos locais, envia para ElasticSearch ou salva localmente.
 - **ElasticSearch:** armazenamento e consulta eficiente dos logs.
-- **AnomalyDetector (Python):** detecta anomalias nos logs usando ML.
+- **AnomalyDetector API (Python):** detecta anomalias nos logs usando ML, exposto via REST.
 
 ---
 
@@ -22,17 +22,18 @@ flowchart LR
     F["Log File"] --> B
     B --> C["ElasticSearch"]
     B -.-> D["Local Fallback"]
-    C --> E["AnomalyDetector (Python)"]
+    C --> E["AnomalyDetector API (Python)"]
+    B --> E
 ```
 
 **Componentes:**
 
 - **App:** Origem dos logs (serviços, aplicações)
 - **Log File:** Arquivos locais de log
-- **LogCollector (Go):** Coleta logs via HTTP e arquivos locais, envia para ElasticSearch ou salva localmente
+- **LogCollector (Go):** Coleta logs via HTTP e arquivos locais, envia para ElasticSearch, consulta serviço de ML
 - **ElasticSearch:** Armazenamento e consulta
 - **Local Fallback:** Armazenamento local caso ElasticSearch esteja indisponível
-- **AnomalyDetector (Python):** Detecção de anomalias
+- **AnomalyDetector API (Python):** Detecção de anomalias via REST/gRPC
 
 ---
 
@@ -40,6 +41,7 @@ flowchart LR
 
 - Go (coletor e pipeline de ingestão)
 - Python (scikit-learn para ML)
+- FastAPI (serviço REST de ML)
 - gRPC ou REST (comunicação entre Go e Python)
 - ElasticSearch (armazenamento e consulta de logs)
 
@@ -56,7 +58,7 @@ flowchart LR
 
 ---
 
-## Configuração
+## Configuração do LogCollector
 
 1. Copie o arquivo `.env.sample` para `.env` e ajuste as variáveis conforme necessário:
 
@@ -85,26 +87,61 @@ O serviço ficará disponível em `http://localhost:8080/logs` para receber logs
 
 ---
 
-## Exemplo de Envio de Log via HTTP
+## Serviço de ML (AnomalyDetector API)
+
+### Instalação e Execução
 
 ```sh
-curl -X POST http://localhost:8080/logs \
+cd cmd/ml
+pip install -r requirements.txt
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+### Treinamento do Modelo
+
+Envie logs reais e simulados para o endpoint `/train`:
+
+```sh
+curl -X POST http://localhost:8000/train \
+  -H 'Content-Type: application/json' \
+  -d '[
+    {"timestamp": "2024-06-01T12:00:00Z", "level": "INFO", "message": "User login", "source": "auth"},
+    {"timestamp": "2024-06-01T12:01:00Z", "level": "ERROR", "message": "Brute force detected", "source": "auth"}
+  ]'
+```
+
+### Predição de Anomalia
+
+Envie um log para o endpoint `/predict`:
+
+```sh
+curl -X POST http://localhost:8000/predict \
   -H 'Content-Type: application/json' \
   -d '{
-    "timestamp": "2024-06-01T12:00:00Z",
-    "level": "INFO",
-    "message": "User login successful",
-    "source": "auth-service"
+    "timestamp": "2024-06-01T12:05:00Z",
+    "level": "ERROR",
+    "message": "Multiple failed logins",
+    "source": "auth"
   }'
+```
+
+Resposta:
+
+```json
+{
+  "anomaly_score": 0.42,
+  "is_anomaly": true
+}
 ```
 
 ---
 
 ## Observações
 
-- O coletor faz parsing dos campos: `timestamp`, `level`, `message`, `source`.
-- Logs podem ser enviados por múltiplas fontes (HTTP ou arquivos locais `.jsonl`).
-- Se o ElasticSearch estiver indisponível, os logs são salvos localmente em `logs.jsonl`.
-- O diretório monitorado para arquivos locais pode ser configurado via variável de ambiente.
+- O serviço de ML utiliza Isolation Forest e pode ser treinado via API.
+- O modelo é salvo em disco e recarregado automaticamente.
+- O endpoint `/predict` retorna score e flag de anomalia.
+- Integração com Go pode ser feita via requisições HTTP para o serviço Python.
+- Teste o modelo com logs reais e simulando ataques (ex: brute force, spikes).
 
 ---
