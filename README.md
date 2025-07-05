@@ -6,10 +6,10 @@ Monitoramento inteligente de logs com detecção de anomalias baseada em machine
 
 ## Visão Geral
 
-O Log Sentinel é uma solução para ingestão, armazenamento e análise de logs, com detecção de anomalias baseada em machine learning. O pipeline é composto por:
+O Log Sentinel é uma solução para ingestão, detecção e reação a anomalias em logs. O pipeline é composto por:
 
-- **LogCollector (Go):** recebe logs via HTTP e arquivos locais, envia para ElasticSearch ou salva localmente.
-- **ElasticSearch:** armazenamento e consulta eficiente dos logs.
+- **LogCollector (Go):** recebe logs, envia para ElasticSearch, consulta serviço de ML e sinaliza anomalias.
+- **ElasticSearch:** armazenamento dos logs e das anomalias.
 - **AnomalyDetector API (Python):** detecta anomalias nos logs usando ML, exposto via REST.
 
 ---
@@ -24,16 +24,19 @@ flowchart LR
     B -.-> D["Local Fallback"]
     C --> E["AnomalyDetector API (Python)"]
     B --> E
+    E --> G["Anomaly Index"]
+    B --> G
 ```
 
 **Componentes:**
 
 - **App:** Origem dos logs (serviços, aplicações)
 - **Log File:** Arquivos locais de log
-- **LogCollector (Go):** Coleta logs via HTTP e arquivos locais, envia para ElasticSearch, consulta serviço de ML
+- **LogCollector (Go):** Coleta logs, envia para ElasticSearch, consulta serviço de ML, grava anomalias em outro índice
 - **ElasticSearch:** Armazenamento e consulta
 - **Local Fallback:** Armazenamento local caso ElasticSearch esteja indisponível
 - **AnomalyDetector API (Python):** Detecção de anomalias via REST/gRPC
+- **Anomaly Index:** Índice dedicado para logs anômalos
 
 ---
 
@@ -65,25 +68,25 @@ flowchart LR
 ```env
 # Endereço do ElasticSearch (padrão: http://localhost:9200)
 ELASTIC_ADDR=http://localhost:9200
-
 # Nome do índice no ElasticSearch (padrão: logs-sentinel)
 ELASTIC_INDEX=logs-sentinel
-
 # Diretório monitorado para arquivos locais de log (padrão: /var/log/log_sentinel)
 LOG_SENTINEL_DIR=/var/log/log_sentinel
+# URL do serviço de ML (padrão: http://localhost:8000/predict)
+ML_URL=http://localhost:8000/predict
 ```
 
 ---
 
-## Como Executar o LogCollector
+## Pipeline Completo: Ingestão → Detecção → Ação
 
-```sh
-cd cmd/collector
-# Exporte as variáveis de ambiente ou use um gerenciador de env (ex: direnv, dotenv)
-go run main.go
-```
-
-O serviço ficará disponível em `http://localhost:8080/logs` para receber logs via POST.
+1. **Ingestão:** Logs são recebidos via HTTP ou arquivos locais pelo LogCollector.
+2. **Armazenamento:** Logs são salvos no ElasticSearch (ou localmente, fallback).
+3. **Detecção:** Cada log é enviado para o serviço de ML (`ML_URL`).
+4. **Ação:**
+   - Logs anômalos são gravados em um índice dedicado (`logs-sentinel-anomaly`).
+   - Alertas são gerados se houver mais de 5 anomalias por minuto (ajustável via código).
+   - (Exemplo: integração futura com Slack pode ser feita neste ponto).
 
 ---
 
@@ -138,10 +141,10 @@ Resposta:
 
 ## Observações
 
-- O serviço de ML utiliza Isolation Forest e pode ser treinado via API.
-- O modelo é salvo em disco e recarregado automaticamente.
-- O endpoint `/predict` retorna score e flag de anomalia.
-- Integração com Go pode ser feita via requisições HTTP para o serviço Python.
-- Teste o modelo com logs reais e simulando ataques (ex: brute force, spikes).
+- O LogCollector consulta o serviço de ML para cada log e sinaliza anomalias.
+- Logs anômalos são gravados em um índice separado no ElasticSearch.
+- Alertas são emitidos se o número de anomalias ultrapassar o limiar configurado.
+- O pipeline pode ser facilmente estendido para enviar alertas para outros sistemas (ex: Slack).
+- O serviço de ML pode ser customizado e treinado via API.
 
 ---

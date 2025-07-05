@@ -20,7 +20,23 @@ var (
 	esClient *elasticsearch.Client
 	esIndex  string
 	logDir   string
+	mlURL    string
 )
+
+type AnomalyResult struct {
+	AnomalyScore float64 `json:"anomaly_score"`
+	IsAnomaly    bool    `json:"is_anomaly"`
+}
+
+type AlertRule struct {
+	Threshold int
+	Window    time.Duration
+	Count     int
+	LastAlert time.Time
+}
+
+var alertRule = AlertRule{Threshold: 5, Window: time.Minute}
+var anomalyCount int
 
 func initConfig() {
 	esIndex = os.Getenv("ELASTIC_INDEX")
@@ -30,6 +46,10 @@ func initConfig() {
 	logDir = os.Getenv("LOG_SENTINEL_DIR")
 	if logDir == "" {
 		logDir = "/var/log/log_sentinel"
+	}
+	mlURL = os.Getenv("ML_URL")
+	if mlURL == "" {
+		mlURL = "http://localhost:8000/predict"
 	}
 }
 
@@ -88,6 +108,69 @@ func saveLog(entry *parser.LogEntry) error {
 	return saveLogToFile(entry)
 }
 
+func checkAnomaly(entry *parser.LogEntry) (bool, float64, error) {
+	data, err := json.Marshal(entry)
+	if err != nil {
+		return false, 0, err
+	}
+	resp, err := http.Post(mlURL, "application/json", bytes.NewReader(data))
+	if err != nil {
+		return false, 0, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return false, 0, nil
+	}
+	var result AnomalyResult
+	err = json.NewDecoder(resp.Body).Decode(&result)
+	if err != nil {
+		return false, 0, err
+	}
+	return result.IsAnomaly, result.AnomalyScore, nil
+}
+
+func saveAnomaly(entry *parser.LogEntry, score float64) error {
+	if esClient != nil {
+		anomalyIndex := esIndex + "-anomaly"
+		anomalyDoc := map[string]interface{}{
+			"timestamp":     entry.Timestamp,
+			"level":         entry.Level,
+			"message":       entry.Message,
+			"source":        entry.Source,
+			"anomaly_score": score,
+		}
+		data, _ := json.Marshal(anomalyDoc)
+		res, err := esClient.Index(anomalyIndex, bytes.NewReader(data), esClient.Index.WithContext(context.Background()))
+		if err == nil && !res.IsError() {
+			defer res.Body.Close()
+			return nil
+		}
+	}
+	return nil
+}
+
+func processLogWithAnomaly(entry *parser.LogEntry) {
+	isAnomaly, score, err := checkAnomaly(entry)
+	if err != nil {
+		log.Printf("[WARN] ML service error: %v", err)
+	}
+	if isAnomaly {
+		anomalyCount++
+		err := saveAnomaly(entry, score)
+		if err != nil {
+			log.Printf("[WARN] Failed to save anomaly: %v", err)
+		}
+		log.Printf("[ALERT] Anomaly detected: %+v (score: %.2f)", entry, score)
+	}
+	if time.Since(alertRule.LastAlert) > alertRule.Window {
+		if anomalyCount >= alertRule.Threshold {
+			log.Printf("[ALERT] %d anomalies detected in the last %s!", anomalyCount, alertRule.Window)
+			alertRule.LastAlert = time.Now()
+			anomalyCount = 0
+		}
+	}
+}
+
 func logHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
@@ -103,6 +186,7 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to save log", http.StatusInternalServerError)
 		return
 	}
+	go processLogWithAnomaly(entry)
 	w.WriteHeader(http.StatusAccepted)
 }
 
@@ -124,6 +208,7 @@ func processLogFile(path string) {
 		if err != nil {
 			log.Printf("[WARN] Failed to save log of file %s: %v", path, err)
 		}
+		go processLogWithAnomaly(&entry)
 	}
 }
 
