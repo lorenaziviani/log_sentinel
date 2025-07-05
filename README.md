@@ -1,4 +1,4 @@
-# 🛡️ Log Sentinel - Observabilidade & Anomalias em Logs
+# 🔍 Log Sentinel - Observabilidade & Anomalias em Logs
 
 <div align="center">
 <img src=".gitassets/cover.png" width="350" />
